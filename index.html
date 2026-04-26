@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>のりこ Todo</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F0F13;
+    --surface: #1A1A24;
+    --surface2: #22222F;
+    --border: #2E2E3E;
+    --text: #E8E8F0;
+    --text-muted: #7070A0;
+    --accent: #C084FC;
+    --accent2: #818CF8;
+    --danger: #F87171;
+    --success: #34D399;
+    --warn: #FBBF24;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background decoration */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(192,132,252,0.08) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Header */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,15,19,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .header-title {
+    font-size: 18px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .header-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--text-muted);
+    text-align: right;
+  }
+
+  /* Main layout */
+  .container {
+    max-width: 600px; margin: 0 auto;
+    padding: 20px 16px 100px;
+    position: relative; z-index: 1;
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+
+  .stat-card {
+    flex: 1; background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px; text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px; font-weight: 500;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 10px; color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Category filter */
+  .cat-scroll {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding-bottom: 8px; margin-bottom: 20px;
+    scrollbar-width: none;
+  }
+  .cat-scroll::-webkit-scrollbar { display: none; }
+
+  .cat-chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 12px; cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+  }
+
+  .cat-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white; font-weight: 700;
+  }
+
+  .cat-chip:hover:not(.active) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Filter tabs */
+  .filter-tabs {
+    display: flex; gap: 4px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 4px; margin-bottom: 20px;
+  }
+
+  .filter-tab {
+    flex: 1; padding: 8px;
+    border: none; border-radius: 6px;
+    background: transparent; color: var(--text-muted);
+    font-size: 12px; cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+  }
+
+  .filter-tab.active {
+    background: var(--surface2);
+    color: var(--text); font-weight: 700;
+  }
+
+  /* Todo list */
+  .todo-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .todo-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+    transition: all 0.2s;
+    animation: fadeIn 0.3s ease;
+    position: relative; overflow: hidden;
+  }
+
+  .todo-item::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--cat-color, var(--border));
+    border-radius: 3px 0 0 3px;
+  }
+
+  .todo-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .todo-item.completed { opacity: 0.5; }
+  .todo-item.completed .todo-title { text-decoration: line-through; color: var(--text-muted); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .todo-check {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent; cursor: pointer;
+    flex-shrink: 0; margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .todo-check.done {
+    background: var(--success);
+    border-color: var(--success);
+  }
+
+  .todo-check.done::after {
+    content: '✓'; color: white; font-size: 12px; font-weight: 700;
+  }
+
+  .todo-check:not(.done):hover { border-color: var(--success); }
+
+  .todo-body { flex: 1; min-width: 0; }
+
+  .todo-title {
+    font-size: 14px; font-weight: 500;
+    line-height: 1.4; word-break: break-all;
+    margin-bottom: 6px;
+  }
+
+  .todo-meta {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  }
+
+  .meta-badge {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 999px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .priority-high { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .priority-medium { background: rgba(251,191,36,0.15); color: var(--warn); }
+  .priority-low { background: rgba(52,211,153,0.15); color: var(--success); }
+
+  .due-badge {
+    background: rgba(129,140,248,0.15); color: var(--accent2);
+  }
+
+  .due-badge.overdue { background: rgba(248,113,113,0.15); color: var(--danger); }
+
+  .cat-badge {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+  }
+
+  .tag-badge {
+    font-size: 10px; color: var(--accent);
+    opacity: 0.8;
+  }
+
+  .todo-actions {
+    display: flex; flex-direction: column; gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .btn-icon {
+    width: 30px; height: 30px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-icon.delete:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* FAB */
+  .fab {
+    position: fixed; bottom: 24px; right: 20px; z-index: 200;
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 50%;
+    color: white; font-size: 24px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(192,132,252,0.4);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(192,132,252,0.6); }
+  .fab:active { transform: scale(0.95); }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    align-items: flex-end; justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    width: 100%; max-width: 600px;
+    padding: 24px 20px 40px;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 90vh; overflow-y: auto;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border); border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+
+  .modal-title {
+    font-size: 16px; font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 6px; display: block;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    transition: border-color 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .priority-selector {
+    display: flex; gap: 8px;
+  }
+
+  .priority-btn {
+    flex: 1; padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent; color: var(--text-muted);
+    font-size: 12px; cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+  }
+
+  .priority-btn[data-val="high"].active { border-color: var(--danger); color: var(--danger); background: rgba(248,113,113,0.1); }
+  .priority-btn[data-val="medium"].active { border-color: var(--warn); color: var(--warn); background: rgba(251,191,36,0.1); }
+  .priority-btn[data-val="low"].active { border-color: var(--success); color: var(--success); background: rgba(52,211,153,0.1); }
+
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+
+  .btn-primary {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: var(--radius-sm);
+    color: white; font-size: 15px; font-weight: 700;
+    cursor: pointer; font-family: 'Zen Kaku Gothic New', sans-serif;
+    transition: opacity 0.2s;
+    margin-top: 8px;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { opacity: 0.8; }
+
+  /* Empty state */
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  /* Notes preview */
+  .todo-notes {
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 4px; line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 20px; font-size: 13px;
+    z-index: 500; opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">✦ のりこ Todo</div>
+  <div class="header-date" id="headerDate"></div>
+</div>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-label">全タスク</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statToday" style="color:var(--warn)">0</div>
+      <div class="stat-label">今日期限</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statDone" style="color:var(--success)">0</div>
+      <div class="stat-label">完了済み</div>
+    </div>
+  </div>
+
+  <div class="cat-scroll" id="catScroll"></div>
+
+  <div class="filter-tabs">
+    <button class="filter-tab active" data-filter="active" onclick="setFilter('active',this)">未完了</button>
+    <button class="filter-tab" data-filter="all" onclick="setFilter('all',this)">すべて</button>
+    <button class="filter-tab" data-filter="completed" onclick="setFilter('completed',this)">完了済み</button>
+  </div>
+
+  <div class="todo-list" id="todoList"></div>
+</div>
+
+<button class="fab" onclick="openModal()">＋</button>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">タスクを追加</div>
+
+    <div class="form-group">
+      <label class="form-label">タスク名 *</label>
+      <input class="form-input" id="inputTitle" placeholder="何をする？" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-select" id="inputCategory">
+        <option value="">カテゴリなし</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">優先度</label>
+      <div class="priority-selector">
+        <button class="priority-btn" data-val="high" onclick="setPriority('high')">🔴 高</button>
+        <button class="priority-btn active" data-val="medium" onclick="setPriority('medium')">🟡 中</button>
+        <button class="priority-btn" data-val="low" onclick="setPriority('low')">🟢 低</button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">期限日</label>
+        <input class="form-input" type="date" id="inputDueDate" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">タグ（カンマ区切り）</label>
+      <input class="form-input" id="inputTags" placeholder="例: 急ぎ, 確認待ち" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="inputNotes" placeholder="詳細メモ"></textarea>
+    </div>
+
+    <button class="btn-primary" onclick="saveTodo()">保存する</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let categories = [];
+let todos = [];
+let selectedCat = null;
+let currentFilter = 'active';
+let editingId = null;
+let selectedPriority = 'medium';
+
+const API = '';
+
+async function api(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function updateDate() {
+  const now = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('headerDate').textContent =
+    `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
+}
+
+async function loadCategories() {
+  categories = await api('GET', '/api/categories');
+  renderCatFilter();
+  renderCatSelect();
+}
+
+function renderCatFilter() {
+  const el = document.getElementById('catScroll');
+  el.innerHTML = `<button class="cat-chip ${selectedCat===null?'active':''}" onclick="selectCat(null)">すべて</button>`;
+  categories.forEach(c => {
+    el.innerHTML += `<button class="cat-chip ${selectedCat===c.id?'active':''}" onclick="selectCat(${c.id})">${c.emoji} ${c.name}</button>`;
+  });
+}
+
+function renderCatSelect() {
+  const sel = document.getElementById('inputCategory');
+  sel.innerHTML = '<option value="">カテゴリなし</option>';
+  categories.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.emoji} ${c.name}</option>`;
+  });
+}
+
+function selectCat(id) {
+  selectedCat = id;
+  renderCatFilter();
+  renderTodos();
+}
+
+async function loadTodos() {
+  todos = await api('GET', '/api/todos');
+  renderTodos();
+  updateStats();
+}
+
+function updateStats() {
+  const active = todos.filter(t => !t.completed);
+  const done = todos.filter(t => t.completed);
+  const today = new Date().toISOString().split('T')[0];
+  const todayDue = active.filter(t => t.due_date === today);
+
+  document.getElementById('statTotal').textContent = active.length;
+  document.getElementById('statToday').textContent = todayDue.length;
+  document.getElementById('statDone').textContent = done.length;
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < new Date().toISOString().split('T')[0];
+}
+
+function renderTodos() {
+  let filtered = todos;
+  if (selectedCat !== null) filtered = filtered.filter(t => t.category_id === selectedCat);
+  if (currentFilter === 'active') filtered = filtered.filter(t => !t.completed);
+  if (currentFilter === 'completed') filtered = filtered.filter(t => t.completed);
+
+  const el = document.getElementById('todoList');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✦</div><div class="empty-text">タスクなし</div></div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(t => {
+    const color = t.category_color || '#888';
+    const overdue = isOverdue(t.due_date) && !t.completed;
+    const tags = t.tags ? t.tags.split(',').map(s => s.trim()).filter(Boolean) : [];
+    return `
+    <div class="todo-item ${t.completed?'completed':''}" style="--cat-color:${color}">
+      <div class="todo-check ${t.completed?'done':''}" onclick="toggleComplete(${t.id})"></div>
+      <div class="todo-body">
+        <div class="todo-title">${escHtml(t.title)}</div>
+        <div class="todo-meta">
+          ${t.priority ? `<span class="meta-badge priority-${t.priority}">${{high:'🔴 高',medium:'🟡 中',low:'🟢 低'}[t.priority]}</span>` : ''}
+          ${t.due_date ? `<span class="meta-badge due-badge ${overdue?'overdue':''}">${overdue?'⚠️ ':''} ${t.due_date}</span>` : ''}
+          ${t.category_name ? `<span class="cat-badge">${t.category_emoji} ${t.category_name}</span>` : ''}
+          ${tags.map(tag => `<span class="tag-badge">#${escHtml(tag)}</span>`).join('')}
+        </div>
+        ${t.notes ? `<div class="todo-notes">${escHtml(t.notes)}</div>` : ''}
+      </div>
+      <div class="todo-actions">
+        <button class="btn-icon" onclick="editTodo(${t.id})" title="編集">✎</button>
+        <button class="btn-icon delete" onclick="deleteTodo(${t.id})" title="削除">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTodos();
+}
+
+function setPriority(val) {
+  selectedPriority = val;
+  document.querySelectorAll('.priority-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+}
+
+function openModal(todo) {
+  editingId = todo ? todo.id : null;
+  document.getElementById('modalTitle').textContent = todo ? 'タスクを編集' : 'タスクを追加';
+  document.getElementById('inputTitle').value = todo ? todo.title : '';
+  document.getElementById('inputCategory').value = todo ? (todo.category_id || '') : '';
+  document.getElementById('inputDueDate').value = todo ? (todo.due_date || '') : '';
+  document.getElementById('inputTags').value = todo ? (todo.tags || '') : '';
+  document.getElementById('inputNotes').value = todo ? (todo.notes || '') : '';
+  setPriority(todo ? (todo.priority || 'medium') : 'medium');
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('inputTitle').focus(), 300);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+async function saveTodo() {
+  const title = document.getElementById('inputTitle').value.trim();
+  if (!title) { toast('タスク名を入力してください'); return; }
+
+  const data = {
+    title,
+    category_id: document.getElementById('inputCategory').value ? parseInt(document.getElementById('inputCategory').value) : null,
+    priority: selectedPriority,
+    due_date: document.getElementById('inputDueDate').value || null,
+    tags: document.getElementById('inputTags').value.trim(),
+    notes: document.getElementById('inputNotes').value.trim(),
+  };
+
+  try {
+    if (editingId) {
+      const updated = await api('PUT', `/api/todos/${editingId}`, data);
+      todos = todos.map(t => t.id === editingId ? updated : t);
+      toast('更新しました ✓');
+    } else {
+      const created = await api('POST', '/api/todos', data);
+      todos.unshift(created);
+      toast('追加しました ✓');
+    }
+    closeModal();
+    renderTodos();
+    updateStats();
+  } catch(e) {
+    toast('エラーが発生しました');
+  }
+}
+
+function editTodo(id) {
+  const todo = todos.find(t => t.id === id);
+  if (todo) openModal(todo);
+}
+
+async function toggleComplete(id) {
+  try {
+    const updated = await api('PATCH', `/api/todos/${id}/complete`);
+    todos = todos.map(t => t.id === id ? updated : t);
+    renderTodos();
+    updateStats();
+    toast(updated.completed ? '完了！ 🎉' : '未完了に戻しました');
+  } catch(e) { toast('エラー'); }
+}
+
+async function deleteTodo(id) {
+  if (!confirm('このタスクを削除しますか？')) return;
+  try {
+    await api('DELETE', `/api/todos/${id}`);
+    todos = todos.filter(t => t.id !== id);
+    renderTodos();
+    updateStats();
+    toast('削除しました');
+  } catch(e) { toast('エラー'); }
+}
+
+// Init
+updateDate();
+setInterval(updateDate, 60000);
+loadCategories().then(() => loadTodos());
+</script>
+</body>
+</html>
